@@ -1,14 +1,5 @@
 # Qt TcpChat - 基于 Qt TCP 的网络即时通讯与文件管理系统
 
-## 项目运行展示
-
-| 客户端（登录/注册界面） | 客户端（主界面 + 好友/聊天） | 服务端（日志监听） |
-|:---:|:---:|:---:|
-| ![登录界面](show_login.png) | ![主界面](show_main.png) | ![服务端](show_server.png) |
-
-*（占位图：请将实际运行截图重命名为 `show_login.png`、`show_main.png`、`show_server.png` 放入项目根目录）*
-
----
 
 ## 目录
 
@@ -666,28 +657,8 @@ Client 与 Server 目录下各有一份 `client.config`，内容格式为 3 行�
 3. **再启动客户端**：运行 `Client` 产物 → 注册账号 → 登录 → 添加好友 → 聊天。
 4. 文件管理模块可创建/浏览文件夹、删除/重命名文件。
 
----
 
-## 10. 待优化项
-
-| 优先级 | 项目 | 说明 |
-|--------|------|------|
-| 高 | 凭证明文存储 | 数据库账号密码、用户密码均明文硬编码（`operatedb.cpp`），应加密/配置化 |
-| 高 | SQL 注入风险 | `.arg()` 拼接字符串仍可注入，应改用 `QSqlQuery::bindValue()` 预编译参数 |
-| 高 | 粘包指针悬垂 | `(PDU*)buffer.data()` 直接指向 `QByteArray` 内部缓冲，`remove()` 重分配后可能悬垂 |
-| 高 | 连接池未维护 | `MyTcpServer::removeSocket()` 只 `deleteLater`，未从 `m_tcpSocketList` 移除，列表会积累悬垂指针 |
-| 高 | 内存泄漏 | PDU 用 `malloc`/`free` 手动管理，多处错误分支未释放（如 `addFriend` 提前 return） |
-| 中 | 响应分发冗余 | `switch-case` 中多处 `break` 缺失（`client.cpp` 的 `HandlerMsg`），易误触后续分支 |
-| 中 | 误调用 | `ENUM_MSG_TYPE_DIKER_FILE_REQUEST` 分支误调用 `delFriend()`（`client.cpp:141-144`） |
-| 中 | 密码明文传输 | 登录/注册密码以明文走 TCP，公网场景应加 TLS 或哈希 |
-| 低 | 目录残留 | `Client/` 下残留服务端源文件（`server.cpp`/`operatedb.cpp` 等），非 `Client.pro` 编译项，应清理 |
-| 低 | 枚举命名 | `LOGINT`、`DIKER` 等拼写错误，`FINDUSERT` 少字母，影响可读性 |
-| 低 | 聊天响应 | `CHAT_FRIEND_RESPOND`（值 18）未在任何 `switch` 中处理，属冗余定义 |
-| 低 | 硬编码 | IP/端口/文件根目录虽可配置，但数据库连接信息硬编码在 `operatedb.cpp` |
-
----
-
-## 11. 知识索引
+## 10. 知识索引
 
 本项目涉及的 **Qt / C++ / MySQL** 核心知识点速查：
 
