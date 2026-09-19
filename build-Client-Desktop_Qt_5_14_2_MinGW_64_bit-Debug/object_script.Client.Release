@@ -1,0 +1,16 @@
+release/chat.o
+release/file.o
+release/friend.o
+release/index.o
+release/main.o
+release/client.o
+release/olineuser.o
+release/protocol.o
+release/reshandler.o
+release/qrc_config.o
+release/moc_chat.o
+release/moc_client.o
+release/moc_file.o
+release/moc_friend.o
+release/moc_index.o
+release/moc_olineuser.o

@@ -1,0 +1,16 @@
+debug/chat.o
+debug/file.o
+debug/friend.o
+debug/index.o
+debug/main.o
+debug/client.o
+debug/olineuser.o
+debug/protocol.o
+debug/reshandler.o
+debug/qrc_config.o
+debug/moc_chat.o
+debug/moc_client.o
+debug/moc_file.o
+debug/moc_friend.o
+debug/moc_index.o
+debug/moc_olineuser.o

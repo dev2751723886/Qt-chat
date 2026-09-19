@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(qmake *)",
+      "Bash(make *)",
+      "Bash(mingw32-make *)",
+      "Bash(g++ *)",
+      "Bash(gcc *)",
+      "Bash(git *)",
+      "Read(D:\\Qt\\2503\\**)",
+      "Edit(D:\\Qt\\2503\\**)",
+      "Write(D:\\Qt\\2503\\**)",
+      "Glob(D:\\Qt\\2503\\**)",
+      "Grep(D:\\Qt\\2503\\**)"
+    ]
+  }
+}

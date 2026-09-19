@@ -1,0 +1,218 @@
+================================================================================
+    Qt TcpChat — 基于 Qt TCP 的网络即时通讯与文件管理系统
+================================================================================
+
+【项目简介】
+
+这是一个 C++/Qt5 框架开发的双端程序，包含 Client（客户端）和 Server（服务端）。
+
+客户端提供图形界面供用户登录、注册、添加好友、一对一聊天；集成文件管理模块，
+支持创建/删除/重命名文件夹和文件。
+
+服务端基于 TCP 监听客户端连接，通过 MySQL 数据库管理用户信息和好友关系，负责
+消息转发与在线状态维护。
+
+两端通过自定义二进制协议 PDU（Protocol Data Unit）交互，采用单例模式管理核心类，
+是典型的 Qt 网络编程 + 数据库综合项目。
+
+
+================================================================================
+【知识点罗列】
+================================================================================
+
+1. Qt 核心机制
+   知识点              | 体现                                      | 关键文件
+   ------------------- | ----------------------------------------- | -------------------
+   信号与槽            | QPushButton::clicked -> 自定义槽,         | client.cpp:175-176
+                        | QTcpSocket::connected/readyRead/disconnected|
+   QUi::setupUi        | 所有 Widget 构造时加载 .ui 界面           | client.cpp:172, chat.cpp:9
+   元对象系统(Q_OBJECT)| 每个含信号/槽的类声明中均有 Q_OBJECT 宏   | client.h, index.h
+   QRC 资源文件        | config.qrc 将配置文件嵌入二进制           | Client.pro:52
+   QDebug 调试输出     | 全项目大量使用 qDebug() 打印日志           | 几乎所有 .cpp
+
+2. Qt 网络编程 (Qt Network)
+   知识点              | 体现                                      | 关键文件
+   ------------------- | ----------------------------------------- | -------------------
+   QTcpSocket(客户端)  | 连接服务器、发送/接收数据                 | client.cpp:174, mytcpsocket.cpp
+   QTcpServer(服务端)  | 监听端口、重写 incomingConnection()       | mytcpserver.cpp:16-26
+   TCP 粘包/拆包处理   | 缓冲区机制:QByteArray累计→按PDU.uiTotalLen解析 | client.cpp:188-198, mytcpsocket.cpp:119-132
+   长连接管理           | 服务端维护 QList<MyTcpSocket*> 列表       | mytcpserver.h:22
+   消息转发 (resend)   | 遍历在线 socket 列表，匹配用户名后转发    | mytcpserver.cpp:40-57
+
+3. 自定义通信协议
+   知识点              | 体现                                      | 关键文件
+   ------------------- | ----------------------------------------- | -------------------
+   二进制协议设计      | PDU结构体:总长度+消息长度+类型+64字节数据+柔性数组 | protocol.h:37-44
+   消息类型枚举        | ENUM_MSG_TYPE 30+种消息(请求/响应成对)    | protocol.h:5-34
+   柔性数组 (C99)      | char caMsg[] 变长消息体                    | protocol.h:42
+   协议工厂函数        | mkPDU() 动态malloc分配，按总长度清零       | protocol.cpp:4-15
+   请求-响应模式       | 每种业务操作都有_REQUEST和对应的_RESPOND   | protocol.h 全枚举
+
+4. Qt 数据库 (Qt SQL)
+   知识点              | 体现                                      | 关键文件
+   ------------------- | ----------------------------------------- | -------------------
+   QSqlDatabase        | 连接 MySQL 数据库                          | operatedb.cpp:7
+   MySQL 驱动 (QMYSQL) | QSqlDatabase::addDatabase("QMYSQL")        | operatedb.cpp:7
+   QSqlQuery           | 执行 SQL 语句:增删改查                    | operatedb.cpp 全文件
+   SQL 注入防护        | 使用 QString::arg() 参数化而非拼接        | 全部 SQL 语句
+   多表关联查询        | friend表通过user_id/friend_id关联user_info表 | operatedb.cpp:166-177
+   数据库单例          | OperateDB::getInstance() 全局唯一实例      | operatedb.cpp:30-34
+
+5. 设计模式
+   知识点              | 体现                                      | 关键文件
+   ------------------- | ----------------------------------------- | -------------------
+   单例模式(Singleton) | Client/Server/MyTcpServer/OperateDB/Index  | 各 .h/.cpp
+   单例实现技巧        | 构造函数private、拷贝构造/赋值=delete     | client.h:47-48
+   工厂函数            | mkPDU() 封装PDU内存分配和初始化           | protocol.cpp
+   策略模式雏形        | MsgHandler/ResHandler针对不同uiType分发处理 | msghandler.cpp, reshandler.cpp
+
+6. Qt 容器与内存管理
+   知识点              | 体现                                      | 关键文件
+   ------------------- | ----------------------------------------- | -------------------
+   QList               | QList<MyTcpSocket*>, QList<FileInfo*>      | mytcpserver.h, file.h
+   QStringList         | 好友列表、在线用户列表                     | reshandler.cpp:63
+   QByteArray          | 网络缓冲区，TCP粘包处理                   | client.h:31
+   手动内存管理        | malloc/free 分配 PDU, new/delete 管理对象  | client.cpp:85, protocol.cpp:7
+
+7. Qt 文件操作
+   知识点              | 体现                                      | 关键文件
+   ------------------- | ----------------------------------------- | -------------------
+   QFile               | 读取 client.config 配置文件                | client.cpp:18-28
+   QDir                | 创建/删除/重命名文件夹、遍历文件列表       | msghandler.cpp:39-40, 165-183
+   QFileInfoList       | 列出目录内文件                             | msghandler.cpp:166
+   QTextEdit           | 聊天窗口消息展示 (append)                  | chat.cpp:14
+
+8. C++ 语言特性
+   知识点              | 体现                                      | 关键文件
+   ------------------- | ----------------------------------------- | -------------------
+   =delete 禁用构造    | 单例禁止拷贝                              | client.h:48-49
+   memcpy 内存操作     | 将二进制数据写入 PDU                       | 遍布 reshandler.cpp
+   enum 枚举           | 消息类型定义                              | protocol.h
+   typedef unsigned    | 类型别名 uint                              | protocol.h:3
+   柔性数组            | char caMsg[] 变长消息体                    | protocol.h:42
+   前置声明            | namespace Ui { class Client; }             | client.h:10
+
+9. 数据库表设计
+   表名                | 字段                   | 说明
+   ------------------- | ---------------------- | -------------------
+   user_info           | id, name, pwd, online  | 用户账号与在线状态
+   friend              | user_id, friend_id     | 双向好友关系
+
+10. 项目构建
+   知识点              | 体现                                      | 关键文件
+   ------------------- | ----------------------------------------- | -------------------
+   qmake (.pro)        | QT += core gui network sql widgets        | Client.pro, Server.pro
+   模块声明            | core gui network(客户端) network sql(服务端)| .pro 文件
+   C++11 标准          | CONFIG += c++11                           | .pro 文件
+
+11. 注意事项 & Bug
+   问题                                      | 位置
+   ----------------------------------------- | -------------------
+   main.cpp 存在 Git 合并冲突未解决           | Client/main.cpp:1-20
+   DIKER_FILE_REQUEST 疑似误调用 delFriend()  | client.cpp:141-144
+   密码和数据库凭证明文存储                   | operatedb.cpp:17-21, client.cpp:53-54
+   TCP 粘包处理直接指向 QByteArray 内部指针   | client.cpp:196, mytcpsocket.cpp:128
+
+
+================================================================================
+【实操过程】
+================================================================================
+
+一、环境准备
+
+    Qt 5.x + MySQL 5.7+ + C++11 编译器 (MinGW / MSVC)
+
+二、数据库建表
+
+    启动 MySQL，执行以下 SQL：
+
+    CREATE DATABASE test;
+    USE test;
+
+    CREATE TABLE user_info (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        name VARCHAR(32) NOT NULL UNIQUE,
+        pwd  VARCHAR(32) NOT NULL,
+        online TINYINT DEFAULT 0
+    );
+
+    CREATE TABLE friend (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        user_id INT NOT NULL,
+        friend_id INT NOT NULL
+    );
+
+三、配置 client.config
+
+    Client 和 Server 目录下的 client.config 内容格式（通过 .qrc 编译进程序）：
+
+        127.0.0.1
+        8888
+        D:/Qt/2503/ServerData
+
+    第 1 行 = 服务器 IP 地址
+    第 2 行 = 端口号
+    第 3 行 = 用户文件存储根目录（服务端会在该路径下为每个用户创建文件夹）
+
+四、编译
+
+    # 服务端
+    cd D:/Qt/2503/Server
+    qmake Server.pro
+    make
+
+    # 客户端
+    cd D:/Qt/2503/Client
+    qmake Client.pro
+    make
+
+    注意：Client 的 main.cpp 有 Git 合并冲突需要先手动解决！
+
+五、运行
+
+    1. 确保 MySQL 已启动
+    2. 先启动 Server -> 自动连接数据库并监听端口
+    3. 再启动 Client -> 注册账号 -> 登录 -> 添加好友 -> 开始聊天
+    4. 文件管理功能可创建/浏览文件夹、删除/重命名文件
+
+六、关键数据流（用户登录为例）
+
+    用户点击登录按钮
+        |
+        v
+    Client::on_login_PB_clicked()
+        |-- mkPDU() 构造登录请求包
+        |-- memcpy() 填充用户名和密码到 caData (前32字节=用户名, 后32字节=密码)
+        |-- pdu->uiType = ENUM_MSG_TYPE_LOGIN_REQUEST
+        |
+        v
+    socket.write() 发送二进制数据
+        |
+        v
+    [网络传输]
+        |
+        v
+    Server::MyTcpSocket::recvMsg()
+        |-- readMsg()
+            |-- buffer.append(data) 累积接收
+            |-- while(buffer >= sizeof(PDU)) 粘包处理
+                |-- PDU* pdu = handleMsg(pdu)
+                    |-- switch(pdu->uiType)
+                        |-- case LOGIN_REQUEST: MsgHandler::login()
+                            |-- OperateDB::hanleLongin() 查库验证
+                            |-- 更新 online=1
+                            |-- 返回响应PDU
+                |-- sendMsg(respdu) 发送响应
+        |
+        v
+    [网络传输]
+        |
+        v
+    Client::recvMsg()
+        |-- buffer.append(data)
+        |-- HandlerMsg(pdu)
+            |-- switch(pdu->uiType)
+                |-- case LOGINT_RESPOND: ResHandler::login()
+                    |-- 读取 caData 中的 bool 结果
+                    |-- 成功: Index::getInstance().show() 打开主界面
+                    |-- 失败: QMessageBox 提示"登录失败"
